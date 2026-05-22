@@ -472,7 +472,14 @@ footer{
 }
 .hero-video-wrap video{
   width:100%;height:100%;object-fit:cover;
-  filter:brightness(.58) saturate(.9)
+  filter:brightness(.58) saturate(.9);
+  /* Poster shows instantly — no flash of black */
+  background-size:cover;
+  background-position:center;
+}
+/* Force video to start loading as early as possible */
+#heroVideo{
+  will-change:auto;
 }
 .hero-video-overlay{
   position:absolute;inset:0;
@@ -2021,8 +2028,20 @@ footer{
 }
 
 </style>
+<link rel="preload" href="deshnok.mp4" as="video" type="video/mp4">
 </head>
 <body>
+<script>
+// Kick off video load as early as possible — before DOM is fully parsed
+(function(){
+  var v = document.createElement('video');
+  v.src = 'deshnok.mp4';
+  v.preload = 'auto';
+  v.muted = true;
+  v.load();
+  window.__preloadedVideo = v;
+})();
+</script>
 
 <!-- CURSOR -->
 <!-- Ambient background orbs -->
@@ -2099,7 +2118,8 @@ footer{
     <div class="hero-video-wrap">
       <!-- VIDEO PLACEMENT: Copy your video file as "deshnok.mp4" into the same folder as index.html -->
       <!-- It plays automatically, muted and looped. The brightness filter makes text legible. -->
-      <video autoplay muted loop playsinline id="heroVideo">
+      <video autoplay muted loop playsinline preload="auto" id="heroVideo" poster="deshnok-poster.jpg">
+        <source src="deshnok.webm" type="video/webm">
         <source src="deshnok.mp4" type="video/mp4">
       </video>
       <div class="hero-video-overlay"></div>
@@ -3463,10 +3483,24 @@ if(!isTouch && cur){
 /* ========== VIDEO FALLBACK ========== */
 const vid=document.getElementById('heroVideo');
 if(vid){
+  // Try to reuse the early-preloaded video buffer
+  if(window.__preloadedVideo && window.__preloadedVideo.readyState >= 2){
+    vid.src = window.__preloadedVideo.src;
+  }
+  // Play as soon as enough data is available
+  vid.addEventListener('canplay', function(){
+    vid.play().catch(function(){});
+  }, {once:true});
   vid.addEventListener('error',()=>{
     const wrap=document.querySelector('.hero-video-wrap');
     if(wrap)wrap.style.background='radial-gradient(ellipse 80% 50% at 50% 60%,rgba(26,58,92,.5) 0%,transparent 70%),linear-gradient(180deg,#050507 0%,#0a0d14 100%)';
   });
+  // Fade in video smoothly once it starts playing so poster doesn't hard-cut
+  vid.style.opacity='0';
+  vid.style.transition='opacity .6s ease';
+  vid.addEventListener('playing', function(){
+    vid.style.opacity='1';
+  }, {once:true});
 }
 
 /* ========== PRODUCT TABS ========== */
